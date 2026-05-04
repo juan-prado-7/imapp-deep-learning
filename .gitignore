@@ -1,7 +1,22 @@
+# Ignore .gitignore xd
+.gitignore
+
 # Ignore datasets
-datasets/
+**/datasets/
 
 # Ignore solutions
 **/solutions/
 **/plots/
 **/models/
+
+# Ignore tests
+**/tests/
+
+# Ignore VSCode settings
+.vscode/
+
+# Ignore cache and log files
+__pycache__/
+*.log
+*.cache
+*.tmp
