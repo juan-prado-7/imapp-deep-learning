@@ -1,1 +1,1 @@
-# Here you will find my IMAPP master projects
+Here you will find my IMAPP master projects in deep learning. They correspond to the modules Applied Deep Learning and Advanced Deep Learning from TU Dortmund university.
