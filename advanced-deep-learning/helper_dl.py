@@ -3,9 +3,12 @@ import sys
 import numpy as np
 from matplotlib import pyplot as plt
 import torch
+import torch.nn as nn
+from torch.utils.data import DataLoader
+import typing as tp
 
 # Choose the best device
-def get_device():
+def get_device() -> str:
     device = (
         "cuda"
         if torch.cuda.is_available()  # CUDA GPU
@@ -18,7 +21,17 @@ def get_device():
     return device
 
 # Train the neural network
-def train_nn(train_loader, val_loader, model, loss_fn, optimizer, num_epochs, patience=None, device='cpu'):
+def train_nn(
+            train_loader: DataLoader, 
+            val_loader: DataLoader,
+            model: nn.Module,
+            loss_fn: function,
+            optimizer: torch.optim.Optimizer,
+            num_epochs: int,
+            patience: int = None,
+            device: str = 'cpu'
+            )-> tp.tuple[list, list]:
+
     print(f'Training {type(model).__name__} on {device}.')
 
     train_losses, val_losses = [], []
@@ -105,7 +118,7 @@ def train_nn(train_loader, val_loader, model, loss_fn, optimizer, num_epochs, pa
 
 
 # Plot training/validation loss
-def plot_losses(train_losses, val_losses, PATH=None):
+def plot_losses(train_losses: list, val_losses: list, PATH: str = None) -> None:
     fig, ax = plt.subplots(layout="constrained")
 
     ax.plot(train_losses, label="Train Loss")
@@ -123,7 +136,12 @@ def plot_losses(train_losses, val_losses, PATH=None):
     return
 
 # Test the model
-def test_nn(test_loader, model, loss_fn, device='cpu'):
+def test_nn(
+            test_loader: DataLoader,
+            model: nn.Module,
+            loss_fn: function, 
+            device: str = 'cpu'
+            ) -> tp.Tuple[np.array, float]:
     model.to(device)
 
     model.eval()
