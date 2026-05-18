@@ -25,12 +25,12 @@ def train_nn(
             train_loader: DataLoader, 
             val_loader: DataLoader,
             model: nn.Module,
-            loss_fn: function,
+            loss_fn: tp.Callable[[torch.Tensor, torch.Tensor, nn.Module], torch.Tensor],
             optimizer: torch.optim.Optimizer,
             num_epochs: int,
             patience: int = None,
             device: str = 'cpu'
-            )-> tp.tuple[list, list]:
+            )-> tp.Tuple[list, list]:
 
     print(f'Training {type(model).__name__} on {device}.')
 
@@ -139,7 +139,7 @@ def plot_losses(train_losses: list, val_losses: list, PATH: str = None) -> None:
 def test_nn(
             test_loader: DataLoader,
             model: nn.Module,
-            loss_fn: function, 
+            loss_fn: tp.Callable[[torch.Tensor, torch.Tensor, nn.Module], torch.Tensor], 
             device: str = 'cpu'
             ) -> tp.Tuple[np.array, float]:
     model.to(device)
