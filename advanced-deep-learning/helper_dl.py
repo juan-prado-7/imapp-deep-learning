@@ -6,6 +6,28 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 import typing as tp
+import awkward as ak
+
+# ---- DATA PREPROCESSING FUNCTIONS ----
+
+# Standard label normalization (subtract mean and divide by std)
+def normalize_labels(labels: np.ndarray, n_labels: int) -> tp.Tuple[np.ndarray, list[list, list]]:
+    labels_norm = np.zeros_like(labels)
+    means, stds = [], []
+    for i in range(n_labels):
+        mean = np.mean(labels[:, i])
+        std = np.std(labels[:, i])
+        means.append(mean)
+        stds.append(std)
+        labels_norm[:, i] = (labels[:, i] - mean) / std
+    return labels_norm, [means, stds]
+
+# Denormalize the labels
+def denormalize_labels(labels_norm: np.ndarray, n_labels: int, means: list, stds: list) -> np.ndarray:
+    labels = np.zeros_like(labels_norm)
+    for i in range(n_labels):
+        labels[:, i] = (labels_norm[:, i] * stds[i]) + means[i]
+    return labels
 
 # Choose the best device
 def get_device() -> str:
@@ -20,6 +42,8 @@ def get_device() -> str:
     )
     return device
 
+# ---- TRAINING FUNCTIONS ----
+
 # Train the neural network
 def train_nn(
             train_loader: DataLoader, 
@@ -30,7 +54,7 @@ def train_nn(
             num_epochs: int,
             patience: int = None,
             device: str = 'cpu'
-            )-> tp.Tuple[list, list]:
+        )-> tp.Tuple[list, list]:
 
     print(f'Training {type(model).__name__} on {device}.')
 
@@ -98,7 +122,7 @@ def train_nn(
         
         # Print epoch summary
         epoch_time = time.time() - start_time  # Calculate epoch time
-        sys.stdout.write(f"\rEpoch [{epoch + 1}/{num_epochs}], Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}, Time: {epoch_time:.2f} seconds\n")
+        sys.stdout.write(f"\rEpoch [{epoch + 1}/{num_epochs}], Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}, Time: {epoch_time:.2f} seconds")
         sys.stdout.flush()
 
         if(patience is not None):
@@ -108,9 +132,13 @@ def train_nn(
                 patience_counter = 0
             else:
                 patience_counter += 1
+                sys.stdout.write(f", Patience: [{patience_counter}/{patience}]")
+                sys.stdout.flush()
                 if patience_counter >= patience:
-                    print("Early stopping triggered.")
+                    print("\nEarly stopping triggered.")
                     break
+        
+        sys.stdout.write("\n")
 
     print("Training complete.")
 
@@ -121,8 +149,8 @@ def train_nn(
 def plot_losses(train_losses: list, val_losses: list, PATH: str = None) -> None:
     fig, ax = plt.subplots(layout="constrained")
 
-    ax.plot(train_losses, label="Train Loss")
-    ax.plot(val_losses, label="Validation Loss")
+    ax.plot(train_losses[1:], label="Train Loss")
+    ax.plot(val_losses[1:], label="Validation Loss")
 
     ax.legend()
     ax.set(
@@ -131,9 +159,28 @@ def plot_losses(train_losses: list, val_losses: list, PATH: str = None) -> None:
     )
 
     if PATH is not None:
-        fig.savefig(PATH, dpi=300)
+        fig.savefig(f"{PATH}/loss-curves.png", dpi=300)
 
     return
+
+# Save and load model functions
+def save_model(model: nn.Module, hyperparams: dict, PATH: str) -> None:
+    info = {
+        "hyperparams": hyperparams,
+        "state_dict": model.state_dict(),}
+    torch.save(info, PATH)
+
+    return
+
+def load_model(model_class: tp.Type[nn.Module], PATH: str) -> nn.Module:
+    info = torch.load(PATH)
+
+    model = model_class(**info["hyperparams"]["model_hyperparams"])
+    model.load_state_dict(info["state_dict"])
+
+    return model, info["hyperparams"]
+
+# ---- EVALUATION FUNCTIONS ----
 
 # Test the model
 def test_nn(
@@ -141,7 +188,8 @@ def test_nn(
             model: nn.Module,
             loss_fn: tp.Callable[[torch.Tensor, torch.Tensor, nn.Module], torch.Tensor], 
             device: str = 'cpu'
-            ) -> tp.Tuple[np.array, float]:
+        ) -> tp.Tuple[np.array, float]:
+    
     model.to(device)
 
     model.eval()
@@ -167,3 +215,101 @@ def test_nn(
     test_loss /= len(test_loader)  # calculate total loss
 
     return y_test_pred, test_loss
+
+# Scatter plot of predicted values vs true values
+def plot_predicted_vs_true(
+                        labels: np.ndarray, 
+                        labels_pred: np.ndarray, 
+                        n_labels: int, 
+                        label_names: list = None, 
+                        units: list = None, 
+                        errors: np.ndarray=None, 
+                        PATH: str = None
+                    ) -> None:
+    
+    plt.figure(figsize=(4*n_labels, 4))
+    for i in range(n_labels):
+        plt.subplot(1, n_labels, i+1)
+        if errors is not None:
+            plt.errorbar(labels[:, i], labels_pred[:, i], yerr=errors[:, i],
+                    fmt='o', markersize=3, capsize=2, alpha=0.3)
+        else:
+            plt.scatter(labels[:, i], labels_pred[:, i], alpha=0.5, s=3)
+        plt.plot([labels[:, i].min(), labels[:, i].max()], 
+                [labels[:, i].min(), labels[:, i].max()], 'r', lw=1) # Add a y=x line for reference
+        plt.xlabel("True Values")
+        plt.ylabel("Predictions")
+        if units is not None:
+            plt.xlabel(f"True Values ({units[i]})")
+            plt.ylabel(f"Predictions ({units[i]})")
+        if label_names is not None:
+            plt.title(label_names[i])
+    plt.tight_layout()
+
+    if PATH is not None:
+        plt.savefig(f"{PATH}/pred-vs-true.png", dpi=300)
+
+    plt.show()
+
+    return
+
+# Plot residual distribution and calculate bias and std of the predictions
+def plot_residuals(
+            labels: np.ndarray, 
+            labels_pred: np.ndarray, 
+            n_labels: int, 
+            label_names: list = None, 
+            units: list = None,
+            PATH: str = None
+        ) -> tp.Tuple[np.ndarray, np.ndarray]:
+    
+    residuals = labels_pred - labels
+    bias = np.mean(residuals, axis=0)
+    std = np.std(residuals, axis=0)
+    
+    for i in range(n_labels):
+        if units is not None:
+            print(f"Bias in {label_names[i]}: {bias[i]:.3g} {units[i]}")
+            print(f"Std of {label_names[i]}: {std[i]:.3g} {units[i]}")
+        else:
+            print(f"Bias in {label_names[i]}: {bias[i]:.3g}")
+            print(f"Std of {label_names[i]}: {std[i]:.3g}")
+
+    # Residual distribution
+    plt.figure(figsize=(3*n_labels, 3))
+    for i in range(n_labels):
+        plt.subplot(1, n_labels, i+1)
+        plt.hist(residuals[:, i], bins=30, alpha=0.7)
+        plt.xlabel("Residuals")
+        if units is not None:
+            plt.xlabel(f"Residuals ({units[i]})")
+        if label_names is not None:
+            plt.title(label_names[i])
+    plt.tight_layout()
+
+    if PATH is not None:
+        plt.savefig(f"{PATH}/residuals-hist.png", dpi=300)
+
+    plt.show()
+
+    # Residual dependency on true values
+    plt.figure(figsize=(3*n_labels, 3))
+    for i in range(n_labels):
+        plt.subplot(1, n_labels, i+1)
+        plt.scatter(labels[:, i], residuals[:, i], label=labels[i], alpha=0.5, s=3)
+        plt.axhline(0, color='r', lw=1) # Add a horizontal line at y=0 for reference
+        plt.xlabel("True Values")
+        plt.ylabel("Residuals")
+        if units[i]:
+            plt.xlabel(f"True Values ({units[i]})")
+            plt.ylabel(f"Residuals ({units[i]})")
+        if label_names is not None:
+            plt.title(label_names[i])
+    plt.tight_layout()
+
+    if PATH is not None:
+        plt.savefig(f"{PATH}/residuals-vs-true.png", dpi=300)
+
+    plt.show()
+
+    return bias, std

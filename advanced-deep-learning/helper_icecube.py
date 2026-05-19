@@ -7,6 +7,8 @@ import torch
 from torch.utils.data import DataLoader
 from torch_geometric.data import Data, Batch
 
+import helper_dl as dl
+
 # import torch
 # import torch.nn as nn
 # import torch.optim as optim
@@ -29,26 +31,34 @@ def load_icecube_data(PATH: str) -> tp.Tuple[ak.Array, ak.Array, ak.Array]:
 # working with Awkward arrays is a bit tricky because the ['data'] field can't be assigned in-place,
 # so we need to extract the time, x, and y coordinates, normalize them separately,
 # and then concatenate them back together.
-def normalize_data(train_dataset: ak.Array) -> None: 
-    times = train_dataset["data"][:, 0:1, :]  # important to index the time dimension with 0:1 to keep this dimension (n_events, 1, n_hits)
+def normalize_data(dataset: ak.Array) -> tp.Tuple[ak.Array, list[list, list]]:
+    dataset_norm = ak.Array({
+        "data": dataset["data"],
+        "xpos": dataset["xpos"],
+        "ypos": dataset["ypos"]
+    })
+
+    times = dataset["data"][:, 0:1, :]  # important to index the time dimension with 0:1 to keep this dimension (n_events, 1, n_hits)
     norm_times = times - np.min(times, axis=-1, keepdims=True)
     norm_times = norm_times/np.max(norm_times)
 
-    x = train_dataset["data"][:, 1:2, :]
+    x = dataset["data"][:, 1:2, :]
     norm_x = (x - np.mean(x)) / np.std(x)
-    y = train_dataset["data"][:, 2:3, :]
+    y = dataset["data"][:, 2:3, :]
     norm_y = (y - np.mean(y)) / np.std(y)
 
     # Concatenate the normalized data back together
-    train_dataset["data"] = ak.concatenate([norm_times, norm_x, norm_y], axis=1)
+    dataset_norm["data"] = ak.concatenate([norm_times, norm_x, norm_y], axis=1)
 
     # Normalize labels (this can be done in-place), e.g. by
-    x_mean, y_mean = np.mean(train_dataset["xpos"]), np.mean(train_dataset["ypos"])
-    x_std, y_std = np.std(train_dataset["xpos"]), np.std(train_dataset["ypos"])
-    train_dataset["xpos"] = (train_dataset["xpos"] - x_mean) / x_std
-    train_dataset["ypos"] = (train_dataset["ypos"] - y_mean) / y_std
+    labels = np.column_stack([dataset["xpos"], dataset["ypos"]]).to_numpy()
+    labels_norm, [means, stds] = dl.normalize_labels(labels, n_labels=2)
+    dataset_norm["xpos"] = labels_norm[:, 0]
+    dataset_norm["ypos"] = labels_norm[:, 1]
 
-    return
+    return dataset_norm, [means, stds]
+
+
 
 # Create the DataLoader for training, validation, and test datasets
 # Important: We use the custom collate function to preprocess the data for GNN (see the description of the collate function for details)

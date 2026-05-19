@@ -90,7 +90,7 @@ def plot_predicted_vs_true(labels, labels_pred, n_labels, label_names, units=Non
                 [labels[:, i].min(), labels[:, i].max()], 'r', lw=1) # Add a y=x line for reference
         plt.xlabel("True Values")
         plt.ylabel("Predictions")
-        if units[i]:
+        if units is not None:
             plt.xlabel(f"True Values ({units[i]})")
             plt.ylabel(f"Predictions ({units[i]})")
         plt.title(label_names[i])
