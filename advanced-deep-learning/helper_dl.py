@@ -253,7 +253,15 @@ def plot_predicted_vs_true(
 
     return
 
-# Plot residual distribution and calculate bias and std of the predictions
+# Calculate bias and std of the predictions
+def get_bias_std(labels: np.ndarray, labels_pred: np.ndarray)-> tp.Tuple[np.ndarray, np.ndarray]:
+    residuals = labels_pred - labels
+    bias = np.mean(residuals, axis=0)
+    std = np.std(residuals, axis=0)
+
+    return bias, std
+
+# Plot residual distribution
 def plot_residuals(
             labels: np.ndarray, 
             labels_pred: np.ndarray, 
@@ -261,25 +269,16 @@ def plot_residuals(
             label_names: list = None, 
             units: list = None,
             PATH: str = None
-        ) -> tp.Tuple[np.ndarray, np.ndarray]:
+        ) -> None:
     
     residuals = labels_pred - labels
-    bias = np.mean(residuals, axis=0)
-    std = np.std(residuals, axis=0)
-    
-    for i in range(n_labels):
-        if units is not None:
-            print(f"Bias in {label_names[i]}: {bias[i]:.3g} {units[i]}")
-            print(f"Std of {label_names[i]}: {std[i]:.3g} {units[i]}")
-        else:
-            print(f"Bias in {label_names[i]}: {bias[i]:.3g}")
-            print(f"Std of {label_names[i]}: {std[i]:.3g}")
 
     # Residual distribution
     plt.figure(figsize=(3*n_labels, 3))
     for i in range(n_labels):
         plt.subplot(1, n_labels, i+1)
         plt.hist(residuals[:, i], bins=30, alpha=0.7)
+        plt.vlines(0, 0, plt.ylim()[1], color='r', lw=1) # Add a vertical line at x=0 for reference
         plt.xlabel("Residuals")
         if units is not None:
             plt.xlabel(f"Residuals ({units[i]})")
@@ -312,4 +311,4 @@ def plot_residuals(
 
     plt.show()
 
-    return bias, std
+    return 
