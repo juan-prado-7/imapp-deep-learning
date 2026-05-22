@@ -6,7 +6,6 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 import typing as tp
-import awkward as ak
 
 # ---- DATA PREPROCESSING FUNCTIONS ----
 

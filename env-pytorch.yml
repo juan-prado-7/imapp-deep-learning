@@ -1,0 +1,29 @@
+name: pytorch
+channels:
+  - conda-forge
+dependencies:
+  - awkward
+  - jupyter
+  - matplotlib
+  - numpy
+  - pandas
+  - pyarrow
+  - python=3.12
+  - scikit-learn
+  - scipy
+  - seaborn
+  - typing
+  - pip
+  - pip:
+    - --find-links https://data.pyg.org/whl/torch-2.11.0+cpu.html
+    - jammy_flows==1.0.0
+    - setuptools==81.0.0
+    - torch==2.12.0+xpu
+    - torchaudio==2.11.0+xpu
+    - torchvision==0.27.0+xpu
+    - torch-geometric==2.7.0
+    - torch-summary==1.4.5
+    - torch_cluster==1.6.3+pt211cpu
+    - torch_scatter==2.1.2+pt211cpu
+    - torch_sparse==0.6.18+pt211cpu
+    - tqdm==4.67.3

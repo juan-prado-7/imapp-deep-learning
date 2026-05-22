@@ -14,7 +14,6 @@ def load_galah_data(PATH):
     # labels: mass, age, l_bol, dist, t_eff, log_g, fe_h, SNR
     labelNames = ["mass", "age", "l_bol", "dist", "t_eff", "log_g", "fe_h", "SNR"]
     units = ["M_sun", "Gyr", "L_sun", "pc", "K", "", "", ""]
-    labels = np.load(f"../datasets/labels.npy")
 
     # We only use the three labels: t_eff, log_g, fe_h, SNR
     labelNames = labelNames[-4:-1]

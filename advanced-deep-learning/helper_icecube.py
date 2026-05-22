@@ -9,15 +9,6 @@ from torch_geometric.data import Data, Batch
 
 import helper_dl as dl
 
-# import torch
-# import torch.nn as nn
-# import torch.optim as optim
-# from torch.utils.data import DataLoader, TensorDataset, random_split
-# from torch.utils.tensorboard import SummaryWriter # to print to tensorboard
-# import torch.nn.functional as F
-# from torch_geometric.data import Data, Batch
-# from torch_geometric.nn import knn_graph, DynamicEdgeConv, global_mean_pool
-
 # Load the dataset
 def load_icecube_data(PATH: str) -> tp.Tuple[ak.Array, ak.Array, ak.Array]:
     train_dataset = ak.from_parquet(os.path.join(PATH, "train.pq"))
