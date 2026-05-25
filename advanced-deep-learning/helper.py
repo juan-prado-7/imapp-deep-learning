@@ -91,7 +91,7 @@ def train_nn(
 
             # Print progress every 10th step, updating the same line
             if (step + 1) % 10 == 0:
-                sys.stdout.write(f"\rEpoch [{epoch + 1}/{num_epochs}], Step [{step + 1}/{len(train_loader)}], Loss: {loss.item():.4f}")
+                sys.stdout.write(f"\rEpoch [{epoch + 1}/{num_epochs}], Step [{step + 1}/{len(train_loader)}] -> Loss: {loss.item():.4f}")
                 sys.stdout.flush()
 
         # calculate loss per epoch
@@ -121,7 +121,7 @@ def train_nn(
         
         # Print epoch summary
         epoch_time = time.time() - start_time  # Calculate epoch time
-        sys.stdout.write(f"\rEpoch [{epoch + 1}/{num_epochs}], Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}, Time: {epoch_time:.2f} seconds")
+        sys.stdout.write(f"\rEpoch [{epoch + 1}/{num_epochs}] -> Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}, Time: {epoch_time:.2f} seconds")
         sys.stdout.flush()
 
         if(patience is not None):

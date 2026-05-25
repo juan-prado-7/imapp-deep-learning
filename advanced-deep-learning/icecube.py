@@ -7,7 +7,7 @@ import torch
 from torch.utils.data import DataLoader
 from torch_geometric.data import Data, Batch
 
-import helper_dl as dl
+import helper as dl
 
 # Load the dataset
 def load_icecube_data(PATH: str) -> tp.Tuple[ak.Array, ak.Array, ak.Array]:
