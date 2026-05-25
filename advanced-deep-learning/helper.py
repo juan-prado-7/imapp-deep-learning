@@ -171,7 +171,7 @@ def save_model(model: nn.Module, hyperparams: dict, PATH: str) -> None:
 
     return
 
-def load_model(model_class: tp.Type[nn.Module], PATH: str) -> nn.Module:
+def load_model(model_class: tp.Type[nn.Module], PATH: str) -> tp.Tuple[nn.Module, dict]:
     info = torch.load(PATH)
 
     model = model_class(**info["hyperparams"]["model_hyperparams"])

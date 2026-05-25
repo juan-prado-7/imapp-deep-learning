@@ -18,6 +18,7 @@ from torch.utils.tensorboard import SummaryWriter # to print to tensorboard
 import typing as tp
 import time
 import sys
+import matplotlib.pyplot as plt
 
 # Load dataset
 def load_mnist_data(PATH: str, batch_size: int, download: bool = False) -> DataLoader:
@@ -67,7 +68,7 @@ def train_gan(
             # Get the real images and flatten them
             # for simplicity, we flatten the image to a vector and to use simple MLP networks
             # 28 * 28 * 1 flattens to 784
-            real = real.view(-1, image_dim).to(device)
+            real = real.view(-1, image_dim[0]*image_dim[1]).to(device)
             batch_size = real.shape[0]
 
             # Step 1) generate fake images
@@ -132,9 +133,9 @@ def train_gan(
                         fixed_noise = torch.randn(batch_size, latent_dim).to(device)
 
                     # Generate noise via Generator, we always use the same noise to see the progression
-                    fake = generator(fixed_noise).reshape(-1, 1, 28, 28)
+                    fake = generator(fixed_noise).reshape(-1, 1, image_dim[0], image_dim[1])
                     # Get real data
-                    data = real.reshape(-1, 1, 28, 28)
+                    data = real.reshape(-1, 1, image_dim[0], image_dim[1])
                     # make grid of pictures and add to tensorboard
                     imgGridFake = torchvision.utils.make_grid(fake, normalize=True)
                     imgGridReal = torchvision.utils.make_grid(data, normalize=True)
@@ -165,3 +166,70 @@ def train_gan(
         sys.stdout.flush()
 
     return disc_losses, gen_losses
+
+# Plot the losses of the discriminator and generator
+def plot_losses(disc_losses: list, gen_losses: list, PATH: str = None) -> None:
+    
+    plt.figure(figsize=(6, 4))
+
+    plt.plot(disc_losses[1:], label="Discriminator Loss")
+    plt.plot(gen_losses[1:], label="Generator Loss")
+
+    plt.legend()
+    plt.xlabel("Epochs")
+    plt.ylabel("Loss")
+
+    if PATH is not None:
+        plt.savefig(f"{PATH}/loss-curves.png", dpi=300)
+
+    plt.show()
+
+    return
+
+# Save and load model functions
+def save_gan(discriminator: nn.Module, generator: nn.Module, hyperparams: dict, PATH: str) -> None:
+    info = {
+        "hyperparams": hyperparams,
+        "disc_state_dict": discriminator.state_dict(),
+        "gen_state_dict": generator.state_dict(),}
+    torch.save(info, PATH)
+
+    return
+
+def load_gan(discriminator_class: tp.Type[nn.Module], generator_class: tp.Type[nn.Module], PATH: str
+             ) -> tp.Tuple[nn.Module, nn.Module, dict]:
+    info = torch.load(PATH)
+
+    discriminator = discriminator_class(**info["hyperparams"]["disc_hyperparams"])
+    discriminator.load_state_dict(info["disc_state_dict"])
+
+    generator = generator_class(**info["hyperparams"]["gen_hyperparams"])
+    generator.load_state_dict(info["gen_state_dict"])
+
+    return discriminator, generator, info["hyperparams"]
+
+
+
+# Visualize the generated images by the generator
+def visualize_generated_images(generator: nn.Module, device: str = 'cpu', shape: tuple = (4, 4), PATH: str = None) -> None:
+    generator.to(device)
+    latent_dim = generator.latent_dim
+    image_dim = generator.image_dim
+    generator.eval()
+
+    with torch.no_grad():
+        noise = torch.randn(shape[0]*shape[1], latent_dim).to(device)
+        fake_images = generator(noise).reshape(-1, 1, image_dim[0], image_dim[1])
+
+        img_grid = torchvision.utils.make_grid(fake_images, nrow=shape[0], normalize=True)
+
+        plt.figure(figsize=(2*shape[0], 2*shape[1]))
+        plt.imshow(img_grid.permute(1, 2, 0).cpu().numpy())
+        plt.axis('off')
+
+        if PATH is not None:
+            plt.savefig(f"{PATH}/generated-images.png", dpi=300)
+
+        plt.show()
+
+    return 
