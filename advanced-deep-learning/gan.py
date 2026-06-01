@@ -38,6 +38,7 @@ def train_gan(
             criterion: nn.modules.loss,
             num_epochs: int,
             log_step: int,
+            PATH: str = None,
             device: str = 'cpu'
         )-> tp.Tuple[list, list]:
     
@@ -53,6 +54,9 @@ def train_gan(
 
     disc_losses = []
     gen_losses = []
+
+    if PATH is not None:
+        writer = SummaryWriter(f"logs/mnist-gan")
 
     step = 0
     for epoch in range(num_epochs):
@@ -93,10 +97,8 @@ def train_gan(
 
             # - now upadate the weights of the discriminator by backpropagating the loss through the discriminator
             # the generator is not updated in this step
-            # HINT: call the `backward` method of the discriminator with the argument `retain_graph=True` to keep the computational graph
-            # this is necessary because we will use the same discriminator to train the generator
             opt_discriminator.zero_grad()
-            loss_discriminator.backward(retain_graph=True)
+            loss_discriminator.backward()
             opt_discriminator.step()
 
             # Train Generator:
@@ -127,7 +129,7 @@ def train_gan(
                 sys.stdout.flush()
 
             # Log the losses and example images to tensorboard
-            if batch_idx % log_step == 0:
+            if PATH is not None and (batch_idx % log_step == 0):
                 with torch.no_grad():
                     if step == 0:
                         fixed_noise = torch.randn(batch_size, latent_dim).to(device)
@@ -144,12 +146,10 @@ def train_gan(
                     # HINT: use the SummaryWriter to add the images and scalars to tensorboard
                     # HINT: use the `add_image` method to add the images to tensorboard
                     # HINT: use the `add_scalar` method to add the losses to tensorboard
-                    writer = SummaryWriter(f"logs/mnist/step_{step}")
                     writer.add_image("MNIST Fake Images", imgGridFake, global_step=step)
                     writer.add_image("MNIST Real Images", imgGridReal, global_step=step)
                     writer.add_scalar("Loss Discriminator", loss_discriminator, global_step=step)
                     writer.add_scalar("Loss Generator", loss_generator, global_step=step)
-                    writer.close()
 
                     # increment step
                     step += 1
@@ -164,6 +164,9 @@ def train_gan(
         epoch_time = time.time() - start_time  # Calculate epoch time
         sys.stdout.write(f"\rEpoch [{epoch + 1}/{num_epochs}] -> Discriminator Loss: {mean_disc_loss:.4f}, Generator Loss: {mean_gen_loss:.4f}, Time: {epoch_time:.2f} seconds\n")
         sys.stdout.flush()
+
+    if PATH is not None:
+        writer.close()
 
     return disc_losses, gen_losses
 
