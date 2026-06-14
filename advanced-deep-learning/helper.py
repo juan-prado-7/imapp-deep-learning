@@ -10,8 +10,13 @@ import typing as tp
 # ---- DATA PREPROCESSING FUNCTIONS ----
 
 # Standard label normalization (subtract mean and divide by std)
-def normalize_labels(labels: np.ndarray, n_labels: int) -> tp.Tuple[np.ndarray, list[list, list]]:
+def normalize_labels(labels: np.ndarray, n_labels: int, means: list = None, stds: list = None
+                     )-> tp.Tuple[np.ndarray, list[list, list]]:
     labels_norm = np.zeros_like(labels)
+    if means is not None and stds is not None:
+        for i in range(n_labels):
+            labels_norm[:, i] = (labels[:, i] - means[i]) / stds[i]
+        return labels_norm, [means, stds]
     means, stds = [], []
     for i in range(n_labels):
         mean = np.mean(labels[:, i])

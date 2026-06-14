@@ -44,7 +44,7 @@ def train_diffusion_model(
     patience_counter = 0
 
     model.to(device)  # Move the model to the chosen device
-    beta = beta.to(device)  # Move beta to the same device as the model
+    beta = torch.tensor(beta).to(device)  # Move beta to the same device as the model
 
     for epoch in range(num_epochs):  # loop through every epoch
         start_time = time.time()  # Start the timer for this epoch
@@ -59,13 +59,15 @@ def train_diffusion_model(
 
             # Sample random time steps for each sample in the batch
             t = torch.randint(0, time_steps, size=(batch_x.shape[0],), device=device).float()
+            alpha_t = (1 - beta) ** (t + 1)  # this is alpha_t bar in the paper
+            t_norm = t / time_steps  # Normalize t to be in [0, 1] (input for the model)
 
             # Add noise to the inputs according to the diffusion process
             noise = torch.randn_like(batch_x)
 
             # Gradient step
             optimizer.zero_grad()
-            loss = loss_fn(batch_x, model, beta, t, noise)
+            loss = loss_fn(batch_x, model, alpha_t, t_norm, noise)
             loss.backward()
             optimizer.step()
 
@@ -93,12 +95,14 @@ def train_diffusion_model(
 
                 # Sample random time steps for each sample in the batch
                 t = torch.randint(0, time_steps, size=(batch_x.shape[0],), device=device).float()
+                alpha_t = (1 - beta) ** (t + 1)  # this is alpha_t bar in the paper
+                t_norm = t / time_steps  # Normalize t to be in [0, 1] (input for the model)
 
                 # Add noise to the inputs according to the diffusion process
                 noise = torch.randn_like(batch_x)
 
                 # calculate the loss
-                loss = loss_fn(batch_x, model, beta, t, noise)
+                loss = loss_fn(batch_x, model, alpha_t, t_norm, noise)
                 val_loss += loss.item()
 
         # calulate loss per epoch
@@ -131,12 +135,14 @@ def train_diffusion_model(
 
 
 # Sample from the trained diffusion model
-def sample_diffusion_model(model: nn.Module, time_steps: int, beta: torch.Tensor, n_samples: int, device: str = 'cpu') -> np.ndarray:
+def sample_diffusion_model(model: nn.Module, time_steps: int, beta: torch.Tensor, n_samples: int, device: str = 'cpu', monitor_denoising: int = 0) -> np.ndarray:
     model.to(device)
-    beta.to(device)
+    beta = torch.tensor(beta).to(device)
     model.eval()
     with torch.no_grad():
         x = torch.randn(n_samples, device=device)  # Start from pure noise
+        denoising_trajectory = x[:monitor_denoising].cpu().numpy() if monitor_denoising > 0 else None
+
         for t in reversed(range(1, time_steps+1)):
             if t != 1:
                 z = torch.randn_like(x)
@@ -144,8 +150,12 @@ def sample_diffusion_model(model: nn.Module, time_steps: int, beta: torch.Tensor
                 z = torch.zeros_like(x)
             
             alpha_t = (1 - beta) ** (t + 1) # this is alpha_t bar in the paper
+            t_norm = float(t) / time_steps 
 
-            model_input = torch.stack((x, torch.full((n_samples,), t, device=device)), dim=1)
+            model_input = torch.stack((x, torch.full((n_samples,), t_norm, device=device)), dim=1)
             x = 1/torch.sqrt(1 - beta) * (x - beta / torch.sqrt(1 - alpha_t) * model(model_input).squeeze()) + torch.sqrt(beta) * z
 
-    return x.cpu().numpy()
+            if denoising_trajectory is not None:
+                denoising_trajectory = np.vstack((denoising_trajectory, x[:monitor_denoising].cpu().numpy()))
+
+    return x.cpu().numpy(), denoising_trajectory.T
