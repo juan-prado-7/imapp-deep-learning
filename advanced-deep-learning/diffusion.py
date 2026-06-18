@@ -19,15 +19,15 @@ import matplotlib.pyplot as plt
 
 # Load dataset
 def load_mnist_data(PATH: str, batch_size: int, download: bool = False) -> DataLoader:
-    myTransforms = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,))])
+    myTransforms = transforms.Compose([transforms.ToTensor()]) # Keep the pixel amplitudes in the range [0,1]
 
     train_dataset = datasets.MNIST(root=PATH, transform=myTransforms, download=download)
-    test_dataset = datasets.MNIST(root=PATH, train=False, transform=myTransforms, download=download)
+    val_dataset = datasets.MNIST(root=PATH, train=False, transform=myTransforms, download=download)
 
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-    test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False)
+    val_loader = DataLoader(val_dataset, batch_size=64, shuffle=False)
 
-    return train_loader, test_loader
+    return train_loader, val_loader
 
 
 # Train the diffusion model (adapted from train_nn in helper.py)
@@ -61,14 +61,13 @@ def train_diffusion_model(
         train_loss = 0
 
         # loop through every batch
-        for step, (batch_x, _) in enumerate(train_loader):
+        for step, (batch, _) in enumerate(train_loader):
             # move the batch to the same device as the model
-            batch_x = batch_x.to(device)
-
+            batch = batch.to(device)
 
             # Gradient step
             optimizer.zero_grad()
-            loss = model(batch_x)
+            loss = model(batch)
             loss.backward()
             optimizer.step()
 
@@ -90,12 +89,12 @@ def train_diffusion_model(
 
         # make sure the gradients are not changed in this step
         with torch.no_grad():
-            for (batch_x, _) in val_loader:
+            for (batch, _) in val_loader:
                 # move the batch to the same device as the model
-                batch_x = batch_x.to(device)
+                batch = batch.to(device)
 
                 # calculate the loss
-                loss = model(batch_x)
+                loss = model(batch)
                 val_loss += loss.item()
 
         # calulate loss per epoch
@@ -124,7 +123,7 @@ def train_diffusion_model(
 
         if PATH is not None:
             with torch.no_grad():
-                fake_image = model.sample(batch_size=4)
+                fake_image = model.sample(batch_size=6)
                 imgGrid = torchvision.utils.make_grid(fake_image, normalize=True)
 
                 # Add the images and losses to tensorboard
