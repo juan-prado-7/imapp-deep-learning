@@ -22,7 +22,7 @@ import matplotlib.pyplot as plt
 
 # Load dataset
 def load_mnist_data(PATH: str, batch_size: int, download: bool = False) -> DataLoader:
-    myTransforms = transforms.Compose([transforms.ToTensor(),transforms.Normalize((0.5,), (0.5,))])
+    myTransforms = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,))])
     dataset = datasets.MNIST(root=PATH, transform=myTransforms, download=download)
     loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
@@ -56,7 +56,7 @@ def train_gan(
     gen_losses = []
 
     if PATH is not None:
-        writer = SummaryWriter(f"logs/mnist-gan")
+        writer = SummaryWriter(PATH)
 
     step = 0
     for epoch in range(num_epochs):
